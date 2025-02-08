@@ -1,0 +1,28 @@
+DOCKER file creation notes
+
+I have set some default depndencies on my environment but If I make my pipeline script more complex  I might need to add more!. 
+
+What These Do
+
+    SHELL ["/bin/bash", "-c"]
+        Changes the default shell inside the container to Bash instead of /bin/sh (which is often the default).
+        Ensures that subsequent RUN commands in the Dockerfile execute using Bash syntax.
+        Useful when working with Conda/Mamba environments since conda activate works better with Bash.
+
+    CMD ["/bin/bash"]
+        Defines the default command that runs when the container starts.
+        Opens an interactive Bash shell when you run the container (docker run -it your-image).
+        If overridden with a different command (docker run your-image echo "Hello"), it won't run /bin/bash. 
+
+✅ Use SHELL ["/bin/bash", "-c"] if:
+
+    You need to use Bash syntax in RUN commands.
+    You're working with Conda, as conda activate works better in Bash.
+
+✅ Use CMD ["/bin/bash"] if:
+
+    You want to drop into an interactive Bash shell when starting the container.
+    
+    
+ ' 
+ Next step is to start writing my one script that has it all. 

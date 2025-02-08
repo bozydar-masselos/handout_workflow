@@ -1,0 +1,4 @@
+#Data-definitions
+data_url: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz20way/alignments/knownCanonical.exonNuc.fa.gz
+threads: 2
+EXONS_to_parse: 300

@@ -1,0 +1,6 @@
+name: gooe
+channels: 
+    - conda-forge
+    - bioconda
+dependencies: 
+    - argparse 

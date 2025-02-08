@@ -1,0 +1,15 @@
+notes
+
+
+>&2
+File descriptor 1 is stdout and File descriptor 2 is stderr.
+Using > to redirect output is the same as using 1>. This says to redirect stdout (file descriptor 1).
+Normally, we redirect to a file. However, we can use >& to redirect to stdout (file descriptor 1) or stderr (file descriptor 2) instead.
+Therefore, to redirect stdout (file descriptor 1) to stderr (file descriptor 2), you can use >&2.
+
+trap 
+The trap command in Bash executes specific code in response to the signal given to the program. It traps the signal received by the program from the OS or the user and then executes the specific code provided by the programmer. It acts like a trigger in response to a signal. 
+
+n Bash, $(...) is command substitution, which allows you to execute a command and use its output as a value
+
+n Bash, ${variable} is a way to reference a variable. It is similar to $variable, but using {} can help in certain cases, such as when concatenating a variable with other characters.

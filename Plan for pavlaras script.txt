@@ -1,0 +1,26 @@
+Plan
+I need to understand how to handle folder creation and access. 
+
+~whatever was script variable should turn to LOCAL variable
+~folder names should become environment variables.
+
+
+1)one function reads the url from config.yaml
+
+2)one function downloads and unzips the data--->> I will write the part that unzips the data, but the part that downloads no because it will take too long to run. 
+
+3a) One function makes sure that the needed data exist.
+3b) one function splits exon mutli-spe alignments into exon-single-spe fasta files (core of hndt1.sh )
+
+4a)One function that checks there are enough files for the 4b to work. 
+4b)A function to concatenate all the exons of a gene of each species into one file (gooe.sh)
+
+5b)Write the function that will concatenate the complete genes and create the multifasta alignment(script: mltgn.sh)
+
+All the functions will run through a main script. 
+
+
+main FUNCTION
+-should contain all input arguments which are: 
+1) place of yaml file / place of my data 
+2) no_of exons to process. 

@@ -9,18 +9,26 @@ I need to understand how to handle folder creation and access.
 
 2)one function downloads and unzips the data--->> I will write the part that unzips the data, but the part that downloads no because it will take too long to run. 
 
-3a) One function makes sure that the needed data exist.
-3b) one function splits exon mutli-spe alignments into exon-single-spe fasta files (core of hndt1.sh )
+3a) One function makes sure that the needed data exist.	done
+3b) one function splits exon mutli-spe alignments into exon-single-spe fasta files (core of hndt1.sh ) done
 
-4a)One function that checks there are enough files for the 4b to work. 
-4b)A function to concatenate all the exons of a gene of each species into one file (gooe.sh)
+4a)One function that checks there are enough files for the 4b to work. done
+4b)A function to concatenate all the exons of a gene of each species into one file (gooe.sh) done
 
-5b)Write the function that will concatenate the complete genes and create the multifasta alignment(script: mltgn.sh)
+5b)Write the function that will concatenate the complete genes and create the multifasta alignment(script: mltgn.sh) --> done
 
-All the functions will run through a main script. 
+All the functions will run through a main script. done 
 
 
-main FUNCTION
+
+main FUNCTION 		done
 -should contain all input arguments which are: 
-1) place of yaml file / place of my data 
-2) no_of exons to process. 
+1) place of yaml file / place of my data  done
+2) no_of exons to process. 	done
+
+
+
+add final directory name to config 	done
+add timestamps at directorynames		!!!
+add number of species per alignment on the config file. done 
+

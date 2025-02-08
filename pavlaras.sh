@@ -5,6 +5,7 @@ set -e
 
 end_message(){
 	local text="$1"
+	echo "${1}"
 	if [[ ! -f ./log.txt ]] ; then
 		touch log.txt
 		echo 'Writing new log file'
@@ -42,13 +43,20 @@ parse_yaml() {					#fine structured
 	export DATA_URL=$(get_yaml_value "${yaml_file}" "data_url" "")				#Exported variables are available globally. 
 	export NEXONS=$(get_yaml_value "${yaml_file}" "EXONS_to_parse" "50") 		# number of exons to parse. 
 	export THREADS=$(get_yaml_value "${yaml_file}" "threads" "1")
+	export Final_output_dir=$(get_yaml_value "${yaml_file}" "output_main" "./mltspe")
+	export SP_counter=$(get_yaml_value "${yaml_file}" "no_of_species" "")
 	# now we'lll check if the read DATA_URL contains an URL. -z checks if a variable is empty!.
 	#echo $DATA_URL $NEXONS
 	if [[ -z ${DATA_URL} ]] ; then 
 		echo "Error: You need to add URL in data_url in config file"
 		exit 1
 	fi
-	echo "no of exons is , $NEXONS "
+	if [[ -z ${SP_counter} ]]; then 
+		echo "Error: You need to provide number of species in exon alignment."
+		exit 1
+	fi
+	end_message "Number of exons to extract is: $NEXONS "
+	end_message "File should contain exon alignments of ${SP_counter} species."
 } 
 #the data after download will be accessed through dDATA env variable
 
@@ -113,18 +121,18 @@ splitter(){							##more or less well structured
 			fi
 		fi
 	done	
-	echo "Finished the splitting" &> end_message
+	end_message "Finished the splitting"
 }
 
 gooe(){
 	local temp_dir=$(mktemp -d) 
-	echo "Temporary_directory created"
+	end_message "Temporary_directory created"
 	trap "rm -rf ${temp_dir}" EXIT
-
-	if [[ -d "./wlgenes" ]]; then
-		rm -rf "./wlgenes"
+	export gooe_dir="./wlgenes_singleSP"
+	if [[ -d "${gooe_dir}" ]]; then
+		rm -rf "${gooe_dir}"
 	fi
-	mkdir ./wlgenes
+	mkdir ${gooe_dir}
 	
 	local cntr=1 										#counter of output.fa file for the input
 	local EXONTOT="$(ls ${split_folder} | wc -l)"		#Total no. of exons.
@@ -154,9 +162,9 @@ gooe(){
 	fi
 	echo $a $b $c && echo $a $c >> geneinfo		#this file contains the genes I actually processed. Usefull later for multigene alignment.
 	local k=1
-	for i in $(seq 20) ; do												#this counter neeeds to go to 20 for the species.
+	for i in $(seq ${SP_counter}) ; do												#this counter neeeds to go to SP_counter number of species. depending on input.
 	local j=$((k+1))													#counts the lines where there is sequence.
-	sed -n -e "${k}p" ./prouts/output${cntr}.fa | awk -F"_" '{print $1 "_" $2}' >> ./wlgenes/${a}_${i}.fasta 	#this line makes for the name to be only in the first line
+	sed -n -e "${k}p" ./prouts/output${cntr}.fa | awk -F"_" '{print $1 "_" $2}' >> ${gooe_dir}/${a}_${i}.fasta 	#this line makes for the name to be only in the first line
 	local b=1	
 	#next loop concatenates all exons of the gene.
 	while [ $b -le $c ]; do
@@ -164,9 +172,9 @@ gooe(){
 			sed -n -e "${j}p" ./prouts/output${b}.fa >> "${temp_dir}/gene_${a}_${i}" 				# makes for all the sequences of the gene to be addeed to the ne file. These files I could delete before the end of the script to reduce garbage.
 			b=$((b+1))
 		done
-	tail -${c} ${temp_dir}/gene_${a}_${i} | tr -d '\n' >> ./wlgenes/${a}_${i}.fasta
+	tail -${c} ${temp_dir}/gene_${a}_${i} | tr -d '\n' >> ${gooe_dir}/${a}_${i}.fasta
 	#removes spaces between exon lines #adds a newline at the end for proper fasta format. I keep ${i} as counter in file name so I will be able to sort output files in fine order everytime.	
-	printf "\n" >> ./wlgenes/${a}_${i}.fasta									
+	printf "\n" >> ${gooe_dir}/${a}_${i}.fasta									
 	k=$((k+2))
 	done
 	z=$((z+1))
@@ -179,6 +187,24 @@ gooe(){
 	end_message "${EXONLFT} exons left non-processed. Exons left don't suffice for a complete gene."
 	#printf "Now run mltgn.sh in the working directory to create multi-species complete gene fasta files.\n"
 } 
+
+multigene_concat(){
+	#Creates directory for output
+	if [[ -d "${Final_output_dir}" ]]; then
+		rm -rf "${Final_output_dir}"
+	fi
+	mkdir "${Final_output_dir}"
+	
+	local ct1=$(cat ./geneinfo | wc -l) 	#this counts for how many genes we will make mutlisp. files.
+	#Gene_concatenation
+	for i in $(seq 1 ${ct1}); do
+		gnnm=$(head -n ${i} ./geneinfo| tail -n 1| awk '{print $1;}')		#genename
+		for j in $(seq 1 ${SP_counter}); do
+			cat ${gooe_dir}/${gnnm}*_${j}.fasta >> ${Final_output_dir}/${gnnm}_mlaln.fasta
+		done
+	done
+	end_message "Finished concatenating genes of species. Output '.fasta' files are in '${Final_output_dir}' folder in working directory."
+}
 
 main(){
 	local CONFIG=$1 	#file with config data is provided with it's path
@@ -198,10 +224,12 @@ main(){
 	else: 
 		echo "I'll process "${NEXONS}" exons. "
 	fi
-	download_data $DATA_URL "./data"
+	download_data $DATA_URL "./input_data"
 	splitter $dDATA
 	gooe 
+	multigene_concat
 	
+	echo  "SYSTEM log:" 
 	cat $log_file  # This prints out all the messages we want our user to have. Except error messages.  
 	#this line will only work after the download function has runned 		splitter($DATA)
 	}

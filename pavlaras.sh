@@ -1,9 +1,8 @@
 #!/bin/bash
-
 #Exit upon error. It terminates the execution if an error occurs.
 set -e
 
-end_message(){
+end_message(){			#a function to write things that happend in each function of the program to a log file so I know how the data were produced.
 	local text="$1"
 	echo "${1}"
 	if [[ ! -f ./log.txt ]] ; then
@@ -31,22 +30,21 @@ get_yaml_value() {	#fine structured
 	fi
 	echo "${value:-$default}"
 }
-#Function to exports the variables needed from YAML file and make them environment variables.!
-parse_yaml() {					#fine structured
+															#Function to exports the variables needed from YAML file and make them environment variables.!
+parse_yaml() {												#fine structured
 	local yaml_file=$1
 
-	if [[ ! -f "${yaml_file}" ]]; then  				#Checks if the config file (yaml_file) exist in the pwdirectory.
+	if [[ ! -f "${yaml_file}" ]]; then  						#Checks if the config file (yaml_file) exist in the pwdirectory.
 		echo "Error: Config file ${yaml_file} doesn't exist"
 		exit 1
 	fi
 
-	export DATA_URL=$(get_yaml_value "${yaml_file}" "data_url" "")				#Exported variables are available globally. 
+	export DATA_URL=$(get_yaml_value "${yaml_file}" "data_url" "")			#Exported variables are available globally. 
 	export NEXONS=$(get_yaml_value "${yaml_file}" "EXONS_to_parse" "50") 		# number of exons to parse. 
 	export THREADS=$(get_yaml_value "${yaml_file}" "threads" "1")
 	export Final_output_dir=$(get_yaml_value "${yaml_file}" "output_main" "./mltspe")
 	export SP_counter=$(get_yaml_value "${yaml_file}" "no_of_species" "")
-	# now we'lll check if the read DATA_URL contains an URL. -z checks if a variable is empty!.
-	#echo $DATA_URL $NEXONS
+											#now we'lll check if the read DATA_URL contains an URL. -z checks if a variable is empty!.
 	if [[ -z ${DATA_URL} ]] ; then 
 		echo "Error: You need to add URL in data_url in config file"
 		exit 1
@@ -60,11 +58,11 @@ parse_yaml() {					#fine structured
 } 
 #the data after download will be accessed through dDATA env variable
 
-download_data() {  				##works fine## #I need to define input url and destination folder with relative path !!data_dir needs to have "full address"!
+download_data() {  											#Downloads the data from the URL provided in the yaml file. If the data are already available it skips the download.
 	local data_url=$1
 	local data_dir=$2
 
-	if [[ -f "${data_dir}/exonNuc.fa.gz" ]]; then		##checks if values is a file##
+	if [[ -f "${data_dir}/exonNuc.fa.gz" ]]; then		##checks if the files exist in order to skip the download
 		export dDATA="${data_dir}/exonNuc.fa.gz"
 		echo "Data already downloaded!"
 		return 0
@@ -78,7 +76,7 @@ download_data() {  				##works fine## #I need to define input url and destinatio
 		exit 127
 	fi 
 
-	if ! wget -O "./${data_dir}/exonNuc.fa.gz" "${data_url}"; then 
+	if ! wget -O "./${data_dir}/exonNuc.fa.gz" "${data_url}"; then 		#Checks if download was successfull by checking if the data are in the file of the path.
 		echo "Couldn't not download the data from ${data_url}. The program will exit"
 		error 1
 	fi 
@@ -86,43 +84,57 @@ download_data() {  				##works fine## #I need to define input url and destinatio
 }
 
 #Function that corresponds to hndt1.sh splits file into exons. 
-splitter(){							##more or less well structured
-	local inputdata=$1 		#Now I have predifened the input but I could also pass it through as an arguement.  #Now the input is the path to the data I want unzipped and analyzed. 
+splitter(){													#more or less well structured
+	local inputdata=$1 					#Now I have predifened the input but I could also pass it through as an arguement.  
+								#Now the input is the path to the data I want unzipped and analyzed. 
 	local count=1
-	if ! command -v zless &> /dev/null; then
+	if ! command -v zless &> /dev/null; then 			#installs dependency if it is missing.
 		echo 'zless is needed. Please install it first'
 		exit 127
 	fi 
 
 	#Create the function output folder #IS TEMPOrary due to trap command. 
 	export split_folder="./prouts" 
-	if [[ ! -d ${split_folder} ]]; then				#check if values is a directory.
+	if [[ ! -d ${split_folder} ]]; then				#check if value is a directory.
 		mkdir ${split_folder}	
 	fi	
-	trap "rm -rf ${split_folder}" EXIT 		#no matter how the script ends (normally or due to an error), the prouts directory will be deleted!! # So I can run the script again easily
+	trap "rm -rf ${split_folder}" EXIT 				#no matter how the script ends (normally or due to an error), the prouts directory will be deleted!! # So I can run the script again easily
 	
 					
-	zless "${inputdata}" | while read x; 
-	do
-		if [[ $x =~ "hg38" ]]; then
-			block=$x
+	zless "${inputdata}" | while read -r x; do
+
+		trimmed=$(echo "$x" | tr -d '[:space:]') 	#this part checks for the double new line that separates agjacent genes.
+		if [[ -z "$trimmed" ]]; then
+			if $prev_empty; then 
+				continue
+			fi
+			prev_empty=true
 		else
-			if [[ ! $x =~ ^[[:space:]]*$ ]]
-			then 
+			prev_empty=false
+		fi 		
+
+		if [[ $x =~ "hg38" ]]; then
+			block=$x								#checks if the fasta sign > exist and write the line with title of sequence in block
+		else
+			if [[ ! $x =~ ^[[:space:]]*$ ]]; then			#if there are no spaces is next line and it is not empty, it writes the text which is the expected sequence in block.
 				block=${block}"\n"${x}
 			else
 				if [[ $block =~ ">" ]]; then 
-				echo -e $block > ./prouts/output$count.fa
+				echo -e $block > ./prouts/output$count.fa		#if next line is another  > marked line it writes the previous block to the outputfile.
 				fi
 				count=$((count+1))
-				if [[ $count -gt ${NEXONS} ]]; then
+
+				if [[ $count -gt ${NEXONS} ]]; then			#if we reach the desired count of extracted alignments as defined by the yaml file, the while loop breaks.
 					break
 				fi
 			fi
 		fi
-	done	
+	done 
+	
 	end_message "Finished the splitting"
 }
+
+
 
 gooe(){
 	local temp_dir=$(mktemp -d) 
@@ -178,7 +190,7 @@ gooe(){
 	k=$((k+2))
 	done
 	z=$((z+1))
-	cntr=$((cntr + c + 1))		#everytime except from c, add one so next iterations the exon of next gene instead of the final exon of previous gene. which would have happened without adding one.
+	cntr=$((cntr + c))		#everytime except from c, add one so next iterations the exon of next gene instead of the final exon of previous gene. which would have happened without adding one.
 	#echo $cntr
 	EXONLFT=$((EXONLFT - c - 1)) 
 	done
@@ -188,28 +200,28 @@ gooe(){
 	#printf "Now run mltgn.sh in the working directory to create multi-species complete gene fasta files.\n"
 } 
 
-multigene_concat(){
-	#Creates directory for output
+multigene_concat(){											#Concatenates the genes of each species, produces one single-gene multi-species alignment
+										#Creates directory for output
 	if [[ -d "${Final_output_dir}" ]]; then
 		rm -rf "${Final_output_dir}"
 	fi
 	mkdir "${Final_output_dir}"
 	
-	local ct1=$(cat ./geneinfo | wc -l) 	#this counts for how many genes we will make mutlisp. files.
-	#Gene_concatenation
+	local ct1=$(cat ./geneinfo | wc -l) 					#this counts for how many genes we will make mutlisp. files.
+										#Gene_concatenation
 	for i in $(seq 1 ${ct1}); do
 		gnnm=$(head -n ${i} ./geneinfo| tail -n 1| awk '{print $1;}')		#genename
 		for j in $(seq 1 ${SP_counter}); do
-			cat ${gooe_dir}/${gnnm}*_${j}.fasta >> ${Final_output_dir}/${gnnm}_mlaln.fasta
+			cat ${gooe_dir}/${gnnm}*_${j}.fasta >> ${Final_output_dir}/${gnnm}_mlaln.fasta		#just adds the content of the gooe() ouput elements into a new multifasta file. 
 		done
 	done
 	end_message "Finished concatenating genes of species. Output '.fasta' files are in '${Final_output_dir}' folder in working directory."
 }
 
 main(){
-	local CONFIG=$1 	#file with config data is provided with it's path
-	#local EXONS=$2		# #of exons to extract is provided	#maybe this number could be incorporated in the yaml file. --> done 
-	#makes sure that user provides a config files(input_data).	
+	local CONFIG=$1 						#file with config data is provided with it's path
+	#local EXONS=$2							#of exons to extract is provided	
+									#makes sure that user provides a config files(input_data).	
 	if [[ ! -f "${CONFIG}" ]]; then 
 		echo "You haven't provided an config file."
 		exit 1
@@ -217,7 +229,7 @@ main(){
 	parse_yaml ${CONFIG} 	
 
 
-	#makes sure that user provides a number of exons to extract .
+									#makes sure that user provides a number of exons to extract .
 	if [[ -z $NEXONS ]]; then
 		echo "You havn't provided a number of exons to process."
 		exit 1
@@ -230,8 +242,8 @@ main(){
 	multigene_concat
 	
 	echo  "SYSTEM log:" 
-	cat $log_file  # This prints out all the messages we want our user to have. Except error messages.  
-	#this line will only work after the download function has runned 		splitter($DATA)
+	cat $log_file  							# This prints out all the messages we want our user to have. Except error messages.  
+									#this line will only work after the download function has runned 		
 	}
 
 
